@@ -356,7 +356,6 @@ bool FitInfinityAPI::syncOfflineRecords() {
         // Fallback to memory-based storage (implementation remains same)
         return false;
     }
-    return success;
 }
 
 bool FitInfinityAPI::isConnected() {

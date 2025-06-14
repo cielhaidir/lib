@@ -11,18 +11,19 @@ const char* deviceId = "your-device-id";
 const char* accessKey = "your-access-key";
 
 // Fingerprint sensor pins
-const int FINGER_RX = D3;  // Connect to TX on sensor
-const int FINGER_TX = D4;  // Connect to RX on sensor
+const int FINGER_RX = 16;  // GPIO16 -> sensor TX
+const int FINGER_TX = 17;  // GPIO17 -> sensor RX
 const int SD_CS_PIN = 5;   // SD card CS pin
 
 // Initialize components
-SoftwareSerial fingerSerial(FINGER_RX, FINGER_TX);
+HardwareSerial fingerSerial(2);
 FitInfinityAPI api(baseUrl, deviceId, accessKey);
 
 void setup() {
   Serial.begin(115200);
   Serial.println("\nFitInfinity Complete System Example");
   
+fingerSerial.begin(57600, SERIAL_8N1, FINGER_RX, FINGER_TX);
   // Connect to WiFi and initialize API
   if (api.begin(ssid, password, SD_CS_PIN)) {
     Serial.println("Connected to WiFi and API!");
