@@ -5,6 +5,7 @@ const char* FitInfinityAPI::OFFLINE_FILE = "/offline.txt";
 const char* FitInfinityAPI::OFFLINE_TEMP = "/offline.tmp";
 
 FitInfinityAPI::FitInfinityAPI(const char* baseUrl, const char* deviceId, const char* accessKey) {
+    _fingerSensor = nullptr;
     _baseUrl = String(baseUrl);
     _deviceId = String(deviceId);
     _accessKey = String(accessKey);
@@ -82,6 +83,183 @@ bool FitInfinityAPI::logRFID(const char* rfidNumber) {
     doc["timestamp"] = getTimestamp();
     
     return makeRequest("logRFID", doc);
+}
+
+bool FitInfinityAPI::getPendingEnrollments(JsonArray& result) {
+    if (!isConnected()) {
+        _lastError = "Not connected to network";
+        return false;
+    }
+
+    HTTPClient http;
+    String url = _baseUrl + "/api/esp32/enrollments/pending";
+    // Add authentication parameters
+    url += "?deviceId=" + _deviceId + "&accessKey=" + _accessKey;
+    http.begin(url);
+    
+    int httpCode = http.GET();
+    bool success = (httpCode == HTTP_CODE_OK);
+    
+    if (success) {
+        String payload = http.getString();
+        DynamicJsonDocument doc(1024);
+        DeserializationError error = deserializeJson(doc, payload);
+        
+        if (!error) {
+            if (doc.containsKey("status") && doc["status"] == "none") {
+                // No pending enrollments
+                success = true;
+            } else {
+                // Single enrollment response
+                JsonObject item = result.createNestedObject();
+                item["id"] = doc["id"];
+                item["nama"] = doc["nama"];
+                // Default finger_id to 0, will be assigned during enrollment
+                item["finger_id"] = 0;
+                item["status"] = "PENDING";
+                // Add current timestamp as created_at
+                item["created_at"] = getTimestamp();
+            }
+        } else {
+            _lastError = "JSON parsing failed";
+            success = false;
+        }
+    } else {
+        _lastError = http.getString();
+    }
+    
+    _lastResponseCode = httpCode;
+    http.end();
+    return success;
+}
+
+bool FitInfinityAPI::beginFingerprint(Stream* stream) {
+    if (!stream) {
+        _lastError = "Invalid stream for fingerprint sensor";
+        return false;
+    }
+
+    _fingerSensor = new Adafruit_Fingerprint(stream);
+    _fingerSensor->begin(57600);
+
+    if (!_fingerSensor->verifyPassword()) {
+        _lastError = "Fingerprint sensor not found";
+        delete _fingerSensor;
+        _fingerSensor = nullptr;
+        return false;
+    }
+
+    return true;
+}
+
+bool FitInfinityAPI::enrollFingerprint(int id) {
+    if (!_fingerSensor) {
+        _lastError = "Fingerprint sensor not initialized";
+        return false;
+    }
+
+    // Take first fingerprint image
+    while (_fingerSensor->getImage() != FINGERPRINT_OK) {
+        delay(100);
+    }
+
+    if (_fingerSensor->image2Tz(1) != FINGERPRINT_OK) {
+        _lastError = "Failed to process first image";
+        return false;
+    }
+
+    delay(2000);
+
+    // Wait until finger is removed
+    while (_fingerSensor->getImage() != FINGERPRINT_NOFINGER) {
+        delay(100);
+    }
+
+    delay(1000);
+
+    // Take second fingerprint image
+    while (_fingerSensor->getImage() != FINGERPRINT_OK) {
+        delay(100);
+    }
+
+    if (_fingerSensor->image2Tz(2) != FINGERPRINT_OK) {
+        _lastError = "Failed to process second image";
+        return false;
+    }
+
+    if (_fingerSensor->createModel() != FINGERPRINT_OK) {
+        _lastError = "Failed to create fingerprint model";
+        return false;
+    }
+
+    if (_fingerSensor->storeModel(id) != FINGERPRINT_OK) {
+        _lastError = "Failed to store fingerprint model";
+        return false;
+    }
+
+    return true;
+}
+
+bool FitInfinityAPI::updateEnrollmentStatus(const char* employeeId, int fingerprintId, bool success) {
+    if (!isConnected()) {
+        _lastError = "Not connected to network";
+        return false;
+    }
+
+    HTTPClient http;
+    String url = _baseUrl + "/api/esp32/enrollments/status";
+    url += "?deviceId=" + _deviceId + "&accessKey=" + _accessKey;
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+
+    StaticJsonDocument<200> doc;
+    doc["employeeId"] = employeeId;
+    doc["fingerprintId"] = fingerprintId;
+    doc["status"] = success ? "ENROLLED" : "FAILED";
+
+    String jsonStr;
+    serializeJson(doc, jsonStr);
+
+    int httpCode = http.POST(jsonStr);
+    bool requestSuccess = (httpCode == HTTP_CODE_OK);
+
+    if (!requestSuccess) {
+        _lastError = http.getString();
+    }
+
+    http.end();
+    return requestSuccess;
+}
+
+uint8_t FitInfinityAPI::scanFingerprint(int* fingerprintId) {
+    if (!_fingerSensor) {
+        _lastError = "Fingerprint sensor not initialized";
+        return FINGERPRINT_NONE;
+    }
+
+    uint8_t result = _fingerSensor->getImage();
+    if (result != FINGERPRINT_OK) {
+        return result;
+    }
+
+    result = _fingerSensor->image2Tz();
+    if (result != FINGERPRINT_OK) {
+        _lastError = "Failed to convert image";
+        return result;
+    }
+
+    result = _fingerSensor->fingerSearch();
+    if (result != FINGERPRINT_OK) {
+        _lastError = "No matching fingerprint found";
+        return result;
+    }
+
+    // Store the matched fingerprint ID
+    if (fingerprintId) {
+        *fingerprintId = _fingerSensor->fingerID;
+    }
+
+    return FINGERPRINT_OK;
 }
 
 void FitInfinityAPI::setOfflineStorageMode(bool useSD) {

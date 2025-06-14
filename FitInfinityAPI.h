@@ -6,6 +6,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <SD.h>
+#include <Adafruit_Fingerprint.h>
 
 class FitInfinityAPI {
   public:
@@ -20,6 +21,13 @@ class FitInfinityAPI {
     // Attendance logging
     bool logFingerprint(int fingerId);
     bool logRFID(const char* rfidNumber);
+    
+    // Enrollment methods
+    bool getPendingEnrollments(JsonArray& result);
+    bool beginFingerprint(Stream* stream);
+    bool enrollFingerprint(int id);
+    bool updateEnrollmentStatus(const char* employeeId, int fingerprintId, bool success);
+    uint8_t scanFingerprint(int* fingerprintId);
     
     // Offline storage
     void storeOfflineRecord(const char* type, const char* id, const char* timestamp);
@@ -41,6 +49,7 @@ class FitInfinityAPI {
   private:
     // Configuration
     String _baseUrl;
+    Adafruit_Fingerprint* _fingerSensor;
     String _deviceId;
     String _accessKey;
     String _ntpServer;
