@@ -402,29 +402,40 @@ bool FitInfinityAPI::makeRequest(const char* action, JsonDocument& doc) {
     http.begin(url);
     http.addHeader("Content-Type", "application/json");
     
-    // Add action to the request body
     doc["action"] = action;
     
     String jsonStr;
     serializeJson(doc, jsonStr);
     
     _lastResponseCode = http.POST(jsonStr);
-    bool success = (_lastResponseCode == HTTP_CODE_OK);
     
-    if (!success) {
-        String response = http.getString();
-        StaticJsonDocument<200> errorDoc;
-        DeserializationError error = deserializeJson(errorDoc, response);
-        if (!error && errorDoc.containsKey("error")) {
-            _lastError = errorDoc["error"].as<String>();
-        } else {
-            _lastError = response;
-        }
-    }
-    
+    String response = http.getString();
     http.end();
-    return success;
+
+    if (_lastResponseCode != HTTP_CODE_OK) {
+        // HTTP error
+        _lastError = response;
+        return false;
+    }
+
+    // Parse response body
+    StaticJsonDocument<512> respDoc;
+    DeserializationError error = deserializeJson(respDoc, response);
+    if (error) {
+        _lastError = "Invalid JSON response";
+        return false;
+    }
+
+    // Check if response has "success": true
+    if (respDoc.containsKey("success") && respDoc["success"] == true) {
+        return true;
+    } else {
+        // handle error message
+        _lastError = response;
+        return false;
+    }
 }
+
 
 void FitInfinityAPI::updateConnectionStatus() {
     _isConnected = (WiFi.status() == WL_CONNECTED);

@@ -62,6 +62,7 @@ public:
     void publishWifiScanResults(JsonArray networks);
     void handleWifiConfig(String ssid, String password);
     void subscribeWifiConfig();
+    void publishWifiStatus(bool connected, String ssid, String ipAddress, String error = "");
     
     // Callback Registration
     void onEnrollmentRequest(void (*callback)(String, String, int));
@@ -82,6 +83,10 @@ public:
     void publishUpdateProgress(int progress);
     void publishUpdateStatus(String status, String error = "");
     bool validateFirmwareChecksum(String checksum, size_t firmwareSize);
+    String getOTAStatus();
+    void publishOTACapabilities();
+    void checkForFirmwareUpdates();
+    void handleOTAError(String error, int errorCode);
     
     // Device Management
     void publishHeartbeat();
@@ -102,7 +107,7 @@ private:
     String getTopicPrefix();
     void setupSubscriptions();
     void handleMqttMessage(char* topic, byte* payload, unsigned int length);
-    void reconnectMQTT();
+    bool reconnectMQTT();
     void sendHeartbeat();
     bool verifyFirmwareSignature(const uint8_t* firmware, size_t size);
     void resetToFactoryDefaults();

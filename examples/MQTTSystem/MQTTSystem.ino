@@ -4,6 +4,7 @@
 #include <PN532_I2C.h>
 #include <PN532.h>
 #include <LiquidCrystal_I2C.h>
+#include <DFRobotDFPlayerMini.h>
 
 // Device configuration
 const char* deviceId = "ESP32_001";
@@ -19,12 +20,18 @@ const char* mqttPassword = "mqtt_p@ssw0rd_f1n1t3";
 // Pin definitions
 const int FINGER_RX = 19;
 const int FINGER_TX = 18;
-const int BUZZER_PIN = 4;
+const int DF_RX = 16;      // DFPlayer RX pin
+const int DF_TX = 17;      // DFPlayer TX pin
+const int BUZZER_PIN = 4;  // Buzzer pin (used for error sounds)
 const int STATUS_LED = 2;
 const int CONFIG_BUTTON = 0;
 
 // LCD configuration
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// DFPlayer Mini setup
+HardwareSerial dfSerial(1); // UART1
+DFRobotDFPlayerMini dfplayer;
 
 // Initialize components
 HardwareSerial fingerSerial(2);
@@ -48,6 +55,8 @@ void onWifiConfig(String ssid, String password);
 void handleFingerprint();
 void handleRFID();
 void showStatus(String message, String detail = "");
+void soundSuccess();
+void soundError();
 void playBeep(int duration = 100);
 void blinkLED(int times = 1);
 void checkConfigButton();
@@ -61,6 +70,20 @@ void setup() {
     pinMode(STATUS_LED, OUTPUT);
     pinMode(CONFIG_BUTTON, INPUT_PULLUP);
     pinMode(BUZZER_PIN, OUTPUT);
+    
+    // Initialize DFPlayer Mini
+    dfSerial.begin(9600, SERIAL_8N1, DF_RX, DF_TX); // RX=16, TX=17
+    Serial.println("Initializing DFPlayer...");
+
+    if (!dfplayer.begin(dfSerial)) {
+        Serial.println("Failed to communicate with DFPlayer Mini.");
+        showStatus("DFPlayer Error", "Check wiring");
+        delay(2000);
+    } else {
+        Serial.println("DFPlayer ready.");
+        dfplayer.volume(25);  // Volume (0–30)
+        dfplayer.playMp3Folder(1);  // Play 001.mp3 from /mp3 folder for startup
+    }
     
     // Initialize LCD
     lcd.init();
@@ -184,15 +207,13 @@ void loop() {
             Serial.println("Enrollment successful for " + currentEmployeeName);
             showStatus("Enrollment OK!", currentEmployeeName);
             api.publishEnrollmentStatus(currentEnrollmentId, "enrolled", currentFingerprintSlot);
-            playBeep(500);
+            soundSuccess(); // Play 001.mp3 for success
             blinkLED(3);
         } else {
             Serial.println("Enrollment failed for " + currentEmployeeName);
             showStatus("Enrollment Failed", "Try again");
             api.publishEnrollmentStatus(currentEnrollmentId, "failed");
-            playBeep(100);
-            delay(100);
-            playBeep(100);
+            soundError(); // Play buzzer for error
         }
         
         // Reset enrollment state
@@ -292,7 +313,7 @@ void handleFingerprint() {
         api.publishAttendanceLog("fingerprint", String(fingerprintId), timestamp);
         
         showStatus("Fingerprint OK", "ID: " + String(fingerprintId));
-        playBeep(200);
+        soundSuccess(); // Play 001.mp3 for success
         blinkLED(2);
         
         Serial.println("Fingerprint attendance: ID " + String(fingerprintId));
@@ -316,7 +337,7 @@ void handleRFID() {
         api.publishAttendanceLog("rfid", rfidTag, timestamp);
         
         showStatus("RFID Success", rfidTag);
-        playBeep(200);
+        soundSuccess(); // Play 001.mp3 for success
         blinkLED(2);
         
         Serial.println("RFID attendance: " + rfidTag);
@@ -412,6 +433,20 @@ void showStatus(String message, String detail) {
         lcd.setCursor(0, 1);
         lcd.print(detail);
     }
+}
+
+void soundSuccess() {
+    // Use DFPlayer for success sound
+    Serial.println("Playing success sound...");
+    dfplayer.volume(30);  // Volume (0–30)
+    dfplayer.playMp3Folder(1);  // Play 001.mp3 from /mp3 folder
+}
+
+void soundError() {
+    // Use DFPlayer for error sound
+    Serial.println("Playing error sound...");
+    dfplayer.volume(30);  // Volume (0–30)
+    dfplayer.playMp3Folder(2);  // Play 002.mp3 from /mp3 folder
 }
 
 void playBeep(int duration) {

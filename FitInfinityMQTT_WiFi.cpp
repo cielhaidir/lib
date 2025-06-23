@@ -125,132 +125,103 @@ void FitInfinityMQTT::stopConfigServer() {
 }
 
 void FitInfinityMQTT::handleConfigRoot() {
-    String html = R"(
-<!DOCTYPE html>
-<html>
-<head>
-    <title>FitInfinity WiFi Configuration</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f2f5; }
-        .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #1877f2; text-align: center; margin-bottom: 30px; }
-        .logo { text-align: center; margin-bottom: 20px; font-size: 24px; font-weight: bold; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 5px; color: #333; font-weight: bold; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #1877f2; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        button:hover { background: #166fe5; }
-        .network-item { padding: 10px; border: 1px solid #eee; margin: 5px 0; border-radius: 5px; cursor: pointer; background: #f8f9fa; }
-        .network-item:hover { background: #e9ecef; }
-        .signal-strength { float: right; color: #666; }
-        .status { text-align: center; margin: 20px 0; padding: 10px; border-radius: 5px; }
-        .status.info { background: #d1ecf1; color: #0c5460; }
-        .hidden { display: none; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="logo">🏋️ FitInfinity</div>
-        <h1>WiFi Configuration</h1>
-        <div class="status info">
-            Device ID: )" + deviceId + R"(<br>
-            Firmware: )" + currentFirmwareVersion + R"(
-        </div>
-        
-        <form action="/save" method="POST">
-            <div class="form-group">
-                <label>Available Networks:</label>
-                <button type="button" onclick="scanNetworks()" id="scanBtn">Scan for Networks</button>
-                <div id="networks" class="hidden"></div>
-            </div>
-            
-            <div class="form-group">
-                <label for="ssid">Network Name (SSID):</label>
-                <input type="text" id="ssid" name="ssid" required placeholder="Enter WiFi network name">
-            </div>
-            
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" placeholder="Enter WiFi password">
-            </div>
-            
-            <button type="submit">Connect to WiFi</button>
-        </form>
-        
-        <div class="status info" style="margin-top: 30px;">
-            <strong>Instructions:</strong><br>
-            1. Click "Scan for Networks" to see available WiFi networks<br>
-            2. Select a network or enter manually<br>
-            3. Enter the WiFi password<br>
-            4. Click "Connect to WiFi"<br>
-            5. The device will restart and connect to your network
-        </div>
-    </div>
-    
-    <script>
-        function selectNetwork(ssid, security) {
-            document.getElementById('ssid').value = ssid;
-            // Focus on password field if network is secured
-            if (security !== 'Open') {
-                document.getElementById('password').focus();
-            }
-        }
-        
-        function scanNetworks() {
-            const btn = document.getElementById('scanBtn');
-            const networksDiv = document.getElementById('networks');
-            
-            btn.textContent = 'Scanning...';
-            btn.disabled = true;
-            
-            fetch('/scan')
-                .then(response => response.json())
-                .then(data => {
-                    networksDiv.innerHTML = '';
-                    networksDiv.classList.remove('hidden');
-                    
-                    if (data.networks && data.networks.length > 0) {
-                        data.networks.forEach(network => {
-                            const div = document.createElement('div');
-                            div.className = 'network-item';
-                            div.onclick = () => selectNetwork(network.ssid, network.encryption);
-                            
-                            const signalBars = getSignalBars(network.rssi);
-                            div.innerHTML = `
-                                <strong>${network.ssid}</strong>
-                                <span class="signal-strength">${signalBars} ${network.rssi} dBm</span>
-                                <br><small>${network.encryption}</small>
-                            `;
-                            networksDiv.appendChild(div);
-                        });
-                    } else {
-                        networksDiv.innerHTML = '<div class="status">No networks found</div>';
-                    }
-                })
-                .catch(err => {
-                    console.error('Scan failed:', err);
-                    networksDiv.innerHTML = '<div class="status">Scan failed. Please try again.</div>';
-                })
-                .finally(() => {
-                    btn.textContent = 'Scan for Networks';
-                    btn.disabled = false;
-                });
-        }
-        
-        function getSignalBars(rssi) {
-            if (rssi > -50) return '📶';
-            if (rssi > -60) return '📶';
-            if (rssi > -70) return '📶';
-            return '📶';
-        }
-        
-        // Auto-scan on page load
-        setTimeout(scanNetworks, 1000);
-    </script>
-</body>
-</html>
-    )";
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<title>FitInfinity WiFi Configuration</title>";
+    html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
+    html += "<style>";
+    html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f0f2f5; }";
+    html += ".container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }";
+    html += "h1 { color: #1877f2; text-align: center; margin-bottom: 30px; }";
+    html += ".logo { text-align: center; margin-bottom: 20px; font-size: 24px; font-weight: bold; }";
+    html += ".form-group { margin-bottom: 20px; }";
+    html += "label { display: block; margin-bottom: 5px; color: #333; font-weight: bold; }";
+    html += "input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box; }";
+    html += "button { width: 100%; padding: 15px; background: #1877f2; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 10px; }";
+    html += "button:hover { background: #166fe5; }";
+    html += ".network-item { padding: 10px; border: 1px solid #eee; margin: 5px 0; border-radius: 5px; cursor: pointer; background: #f8f9fa; }";
+    html += ".network-item:hover { background: #e9ecef; }";
+    html += ".signal-strength { float: right; color: #666; }";
+    html += ".status { text-align: center; margin: 20px 0; padding: 10px; border-radius: 5px; }";
+    html += ".status.info { background: #d1ecf1; color: #0c5460; }";
+    html += ".hidden { display: none; }";
+    html += "</style></head><body>";
+    html += "<div class=\"container\">";
+    html += "<div class=\"logo\">🏋️ FitInfinity</div>";
+    html += "<h1>WiFi Configuration</h1>";
+    html += "<div class=\"status info\">";
+    html += "Device ID: " + deviceId + "<br>";
+    html += "Firmware: " + currentFirmwareVersion;
+    html += "</div>";
+    html += "<form action=\"/save\" method=\"POST\">";
+    html += "<div class=\"form-group\">";
+    html += "<label>Available Networks:</label>";
+    html += "<button type=\"button\" onclick=\"scanNetworks()\" id=\"scanBtn\">Scan for Networks</button>";
+    html += "<div id=\"networks\" class=\"hidden\"></div>";
+    html += "</div>";
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"ssid\">Network Name (SSID):</label>";
+    html += "<input type=\"text\" id=\"ssid\" name=\"ssid\" required placeholder=\"Enter WiFi network name\">";
+    html += "</div>";
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"password\">Password:</label>";
+    html += "<input type=\"password\" id=\"password\" name=\"password\" placeholder=\"Enter WiFi password\">";
+    html += "</div>";
+    html += "<button type=\"submit\">Connect to WiFi</button>";
+    html += "</form>";
+    html += "<div class=\"status info\" style=\"margin-top: 30px;\">";
+    html += "<strong>Instructions:</strong><br>";
+    html += "1. Click \"Scan for Networks\" to see available WiFi networks<br>";
+    html += "2. Select a network or enter manually<br>";
+    html += "3. Enter the WiFi password<br>";
+    html += "4. Click \"Connect to WiFi\"<br>";
+    html += "5. The device will restart and connect to your network";
+    html += "</div></div>";
+    html += "<script>";
+    html += "function selectNetwork(ssid, security) {";
+    html += "document.getElementById('ssid').value = ssid;";
+    html += "if (security !== 'Open') {";
+    html += "document.getElementById('password').focus();";
+    html += "}}";
+    html += "function scanNetworks() {";
+    html += "var btn = document.getElementById('scanBtn');";
+    html += "var networksDiv = document.getElementById('networks');";
+    html += "btn.textContent = 'Scanning...';";
+    html += "btn.disabled = true;";
+    html += "fetch('/scan').then(function(response) {";
+    html += "return response.json();";
+    html += "}).then(function(data) {";
+    html += "networksDiv.innerHTML = '';";
+    html += "networksDiv.classList.remove('hidden');";
+    html += "if (data.networks && data.networks.length > 0) {";
+    html += "data.networks.forEach(function(network) {";
+    html += "var div = document.createElement('div');";
+    html += "div.className = 'network-item';";
+    html += "div.onclick = function() { selectNetwork(network.ssid, network.encryption); };";
+    html += "var signalBars = getSignalBars(network.rssi);";
+    html += "div.innerHTML = '<strong>' + network.ssid + '</strong>' +";
+    html += "'<span class=\"signal-strength\">' + signalBars + ' ' + network.rssi + ' dBm</span>' +";
+    html += "'<br><small>' + network.encryption + '</small>';";
+    html += "networksDiv.appendChild(div);";
+    html += "});";
+    html += "} else {";
+    html += "networksDiv.innerHTML = '<div class=\"status\">No networks found</div>';";
+    html += "}";
+    html += "}).catch(function(err) {";
+    html += "console.error('Scan failed:', err);";
+    html += "networksDiv.innerHTML = '<div class=\"status\">Scan failed. Please try again.</div>';";
+    html += "}).finally(function() {";
+    html += "btn.textContent = 'Scan for Networks';";
+    html += "btn.disabled = false;";
+    html += "});";
+    html += "}";
+    html += "function getSignalBars(rssi) {";
+    html += "if (rssi > -50) return '📶';";
+    html += "if (rssi > -60) return '📶';";
+    html += "if (rssi > -70) return '📶';";
+    html += "return '📶';";
+    html += "}";
+    html += "setTimeout(scanNetworks, 1000);";
+    html += "</script></body></html>";
     
     configServer->send(200, "text/html", html);
 }
@@ -288,35 +259,25 @@ void FitInfinityMQTT::handleWifiSave() {
     // Save credentials
     saveWifiCredentials(ssid, password);
     
-    String html = R"(
-<!DOCTYPE html>
-<html>
-<head>
-    <title>FitInfinity WiFi Configuration</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f0f2f5; text-align: center; }
-        .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .success { color: #28a745; font-size: 18px; margin-bottom: 20px; }
-        .logo { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="logo">🏋️ FitInfinity</div>
-        <div class="success">✅ WiFi Configuration Saved!</div>
-        <p>The device will now restart and connect to your WiFi network.</p>
-        <p><strong>Network:</strong> )" + ssid + R"(</p>
-        <p>Please wait for the device to reconnect...</p>
-    </div>
-    <script>
-        setTimeout(() => {
-            window.close();
-        }, 5000);
-    </script>
-</body>
-</html>
-    )";
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<title>FitInfinity WiFi Configuration</title>";
+    html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
+    html += "<style>";
+    html += "body { font-family: Arial, sans-serif; margin: 40px; background: #f0f2f5; text-align: center; }";
+    html += ".container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }";
+    html += ".success { color: #28a745; font-size: 18px; margin-bottom: 20px; }";
+    html += ".logo { font-size: 24px; font-weight: bold; margin-bottom: 20px; }";
+    html += "</style></head><body>";
+    html += "<div class=\"container\">";
+    html += "<div class=\"logo\">🏋️ FitInfinity</div>";
+    html += "<div class=\"success\">✅ WiFi Configuration Saved!</div>";
+    html += "<p>The device will now restart and connect to your WiFi network.</p>";
+    html += "<p><strong>Network:</strong> " + ssid + "</p>";
+    html += "<p>Please wait for the device to reconnect...</p>";
+    html += "</div>";
+    html += "<script>";
+    html += "setTimeout(function() { window.close(); }, 5000);";
+    html += "</script></body></html>";
     
     configServer->send(200, "text/html", html);
     

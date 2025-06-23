@@ -1,7 +1,7 @@
 #include "FitInfinityMQTT.h"
 
-FitInfinityMQTT::FitInfinityMQTT(const char* baseUrl, const char* deviceId, const char* accessKey) 
-    : FitInfinityAPI(baseUrl, accessKey), mqttClient(wifiClient), deviceId(deviceId) {
+FitInfinityMQTT::FitInfinityMQTT(const char* baseUrl, const char* deviceId, const char* accessKey)
+    : FitInfinityAPI(baseUrl, deviceId, accessKey), mqttClient(wifiClient), deviceId(deviceId) {
     
     // Initialize variables
     lastHeartbeat = 0;
@@ -296,8 +296,7 @@ void FitInfinityMQTT::publishAttendanceLog(String type, String id, String timest
     String payload;
     serializeJson(doc, payload);
     
-    String topic = getTopicPrefix() + "/attendance/" + type;
-    mqttClient.publish(topic.c_str(), payload.c_str());
+
     
     Serial.println("Published " + type + " attendance: " + id);
 }
